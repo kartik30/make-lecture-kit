@@ -89,14 +89,14 @@ FANCY_WORDS = {
 }
 
 # Pre-compiled matchers ------------------------------------------------------ #
-_FANCY_RE = {
-    w: re.compile(r"\b" + re.escape(w) + r"\b", re.IGNORECASE)
-    for w in FANCY_WORDS
-}
-_HANDWORD_RE = {
-    w: re.compile(r"\b" + re.escape(w) + r"\b", re.IGNORECASE)
-    for w in HANDWAVE_WORDS
-}
+_FANCY_SINGLE_RE = re.compile(
+    r"\b(" + "|".join(re.escape(w) for w in FANCY_WORDS) + r")\b",
+    re.IGNORECASE
+)
+_HANDWORD_SINGLE_RE = re.compile(
+    r"\b(" + "|".join(re.escape(w) for w in HANDWAVE_WORDS) + r")\b",
+    re.IGNORECASE
+)
 _VOWEL_GROUP = re.compile(r"[aeiouy]+")
 _WORD = re.compile(r"[A-Za-z']+")
 _SENT_SPLIT = re.compile(r"(?<=[.!?])\s+")
@@ -110,10 +110,16 @@ def find_handwaving(text):
         c = low.count(p)
         if c:
             hits.append((p, c))
-    for w, rx in _HANDWORD_RE.items():
-        c = len(rx.findall(text))
-        if c:
-            hits.append((w, c))
+
+    word_counts = {w: 0 for w in HANDWAVE_WORDS}
+    for match in _HANDWORD_SINGLE_RE.finditer(text):
+        w = match.group(1).lower()
+        if w in word_counts:
+            word_counts[w] += 1
+
+    for w in HANDWAVE_WORDS:
+        if word_counts[w] > 0:
+            hits.append((w, word_counts[w]))
     return hits
 
 
@@ -125,10 +131,14 @@ def find_flourishes(text):
 
 def find_fancy(text):
     """Return [(word, suggestion, count)] for fancy words (WARN)."""
+    hits = {}
+    for match in _FANCY_SINGLE_RE.finditer(text):
+        w = match.group(1).lower()
+        hits[w] = hits.get(w, 0) + 1
+
     out = []
-    for w, rx in _FANCY_RE.items():
-        c = len(rx.findall(text))
-        if c:
+    for w, c in hits.items():
+        if w in FANCY_WORDS:  # double check to map to correct dictionary key
             out.append((w, FANCY_WORDS[w], c))
     out.sort(key=lambda t: (-t[2], t[0]))
     return out
@@ -136,7 +146,7 @@ def find_fancy(text):
 
 def count_syllables(word):
     """Cheap, robust syllable estimate (good enough for a readability score)."""
-    w = re.sub(r"[^a-z]", "", word.lower())
+    w = word.lower().replace("'", "")
     if not w:
         return 0
     groups = _VOWEL_GROUP.findall(w)
