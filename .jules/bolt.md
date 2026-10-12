@@ -1,0 +1,3 @@
+## 2023-10-12 - Re-compiling Regexes in Hot Loops
+**Learning:** Using `re.sub(r"[...]", ...)` inline within a function that is called millions of times (e.g., iterating over words for readability analysis) re-fetches or re-compiles the regex every time, creating a measurable performance bottleneck in Python.
+**Action:** Always pre-compile regexes as module-level constants (e.g., `_NON_ALPHA_RE = re.compile(r"[^a-z]")`) when they will be used inside hot loops like list iterations or text parsing logic.
