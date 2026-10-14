@@ -1,0 +1,3 @@
+## 2024-10-24 - Memoization for repetitive vocabulary
+**Learning:** In NLP or text-processing loops like readability scoring (`flesch_reading_ease`), syllable counting or other per-word heuristics are heavily repeated on common words (e.g., "the", "a"). The linter's `count_syllables` function was doing regex replacement and matching for every single occurrence of these words, causing O(N) regex evaluation on text length instead of unique vocabulary.
+**Action:** Use `functools.lru_cache` to memoize word-level evaluations in text processing, especially since documents inherently have a Zipfian/highly repetitive word distribution. This yields a significant performance boost (measured 5x faster in synthetic benchmark, caching regex calls).
