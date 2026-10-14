@@ -10,6 +10,7 @@ agent platform (Claude / Codex / Jules / Cursor / CI).
 """
 
 import re
+from functools import lru_cache
 
 # Sentence-length policy (mirrors plain_language.md §1).
 WORD_AIM = 15            # the target average
@@ -134,8 +135,13 @@ def find_fancy(text):
     return out
 
 
+@lru_cache(maxsize=2048)
 def count_syllables(word):
-    """Cheap, robust syllable estimate (good enough for a readability score)."""
+    """Cheap, robust syllable estimate (good enough for a readability score).
+
+    Optimized: wrapped in lru_cache. Documents contain highly repetitive
+    vocabulary, so caching syllable counts bypasses repeated regex evaluation.
+    """
     w = re.sub(r"[^a-z]", "", word.lower())
     if not w:
         return 0
