@@ -1,0 +1,120 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{tikz}
+
+% Define colors matching the quiet-design contract
+\definecolor{navy}{HTML}{1A365D}
+\definecolor{accent}{HTML}{2B6CB0}
+
+\newcommand{\secsub}[1]{\noindent\textbf{#1}\par\medskip}
+\newcommand{\vocab}[1]{\textbf{\textcolor{navy}{#1}}}
+
+% Environments for callouts
+\newtcolorbox{intuition}{colback=blue!5,colframe=blue!50!black,title=Intuition}
+\newtcolorbox{everyday}{colback=green!5,colframe=green!50!black,title=Everyday picture}
+\newtcolorbox{worked}[1]{colback=yellow!5,colframe=yellow!50!black,title=Worked example: #1}
+\newtcolorbox{waitwhat}{colback=red!5,colframe=red!50!black,title=Wait, what?}
+\newtcolorbox{watchout}{colback=orange!5,colframe=orange!50!black,title=Watch out}
+\newtcolorbox{keytake}{colback=gray!10,colframe=gray!50!black,title=Key takeaway}
+
+\newenvironment{steps}{\begin{enumerate}[label=\textbf{Step \arabic*.},leftmargin=*]}{\end{enumerate}}
+
+\newcommand{\housefig}[2]{
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.7\textwidth]{#1}
+  \caption{#2}
+\end{figure}
+}
+
+\begin{document}
+
+\title{Study Companion: Introduction to Data Structures}
+\author{Computer Science Fundamentals}
+\date{}
+\maketitle
+
+\section{The big idea: Organizing Information}
+\secsub{How we arrange data changes how fast we can find or change it.}
+
+When we write programs, we deal with data. But data doesn't just float around in the computer's memory randomly. We have to decide \emph{how} to organize it. This organization is called a \vocab{data structure}. Choosing the right data structure can make a program thousands of times faster.
+
+\begin{intuition}
+A data structure is like a physical storage system. If you throw all your tools into a giant bucket, finding a screwdriver takes a long time. If you hang them on a pegboard, finding one is instant. The tools are the same, but the structure changes how you work with them.
+\end{intuition}
+
+\begin{everyday}
+Picture a stack of plates in a cafeteria. You can only easily take the top plate, and if you add a plate, it goes on top. Now picture a line of people waiting for a bus. The first person in line is the first one to get on. The stack and the line are two different ways to organize things, each with its own rules.
+\end{everyday}
+
+\section{Arrays: The Bookshelf}
+\secsub{A row of slots in memory, numbered in order.}
+
+An \vocab{array} is the simplest data structure. It is a continuous block of memory divided into equal-sized slots. Each slot holds one item.
+
+We find items in an array using an \vocab{index}. In most languages, we start counting at zero. So the first item is at index 0, the second at index 1, and so on.
+
+\begin{worked}{Finding a book}
+Suppose we have an array of 5 book titles.
+\begin{steps}
+  \item We create an array \texttt{books = ["Dune", "1984", "Foundation", "Emma", "Beloved"]}.
+  \item We want the third book. Since we start at 0, the third book is at index 2.
+  \item We look up \texttt{books[2]}. The computer instantly finds "Foundation".
+\end{steps}
+\end{worked}
+
+\begin{watchout}
+Arrays are fixed in size. When you create an array of 5 items, the computer carves out exactly that much space. If you want to add a 6th item later, you cannot simply tack it on. Instead, you must create a new, larger array and copy everything over.
+\end{watchout}
+
+\housefig{figures/dummy.png}{A simple visual placeholder for array.}
+
+\section{Linked Lists: The Scavenger Hunt}
+\secsub{Items scattered in memory, holding hands to stay connected.}
+
+If arrays are rigid, \vocab{linked lists} are flexible. Instead of one continuous block, a linked list is made of separate \vocab{nodes}. Each node holds two things: the actual data, and a pointer (a map) to the next node.
+
+\begin{intuition}
+Imagine a scavenger hunt. The first clue doesn't contain the prize, but it tells you exactly where the second clue is hidden. The second clue points to the third, and so on. You don't need a huge open field to set this up; the clues can be hidden anywhere.
+\end{intuition}
+
+\begin{worked}{Following the links}
+Let's build a linked list with three numbers: 10, 20, 30.
+\begin{steps}
+  \item Create the first node: holds \texttt{10}, points to the second node.
+  \item Create the second node: holds \texttt{20}, points to the third node.
+  \item Create the third node: holds \texttt{30}, points to nothing (\texttt{null}).
+  \item To find \texttt{30}, we \emph{must} start at the first node, follow its pointer to \texttt{20}, and follow that pointer to \texttt{30}.
+\end{steps}
+\end{worked}
+
+\begin{keytake}
+Arrays are fast for looking things up if you know the index, but slow to grow. Linked lists are easy to grow and shrink, but slow to search because you have to walk the list one by one.
+\end{keytake}
+
+\noindent\textbf{Where it's used.}
+When using the "undo" button in a text editor, you often walk backward through a linked list of your past actions.
+
+\housefig{figures/dummy.png}{A simple visual placeholder for linked list.}
+
+
+\section*{Glossary \& symbols}
+\addcontentsline{toc}{section}{Glossary \& symbols}
+\noindent\textbf{Key terms.}
+\begin{description}[leftmargin=8.5em,style=nextline,font=\normalfont\bfseries\color{navy}]
+  \item[data structure] A specific way to organize and store data in a computer.
+  \item[array] A continuous block of memory with numbered slots.
+  \item[linked list] A chain of nodes, where each node points to the next.
+\end{description}
+
+\end{document}
