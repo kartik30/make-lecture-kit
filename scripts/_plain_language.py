@@ -89,14 +89,15 @@ FANCY_WORDS = {
 }
 
 # Pre-compiled matchers ------------------------------------------------------ #
-_FANCY_RE = {
-    w: re.compile(r"\b" + re.escape(w) + r"\b", re.IGNORECASE)
-    for w in FANCY_WORDS
-}
-_HANDWORD_RE = {
-    w: re.compile(r"\b" + re.escape(w) + r"\b", re.IGNORECASE)
-    for w in HANDWAVE_WORDS
-}
+# Use a single alternation regex for multiple word checks to reduce passes over the document from O(N) to O(1)
+_FANCY_ALL_RE = re.compile(
+    r"\b(" + "|".join(re.escape(w) for w in FANCY_WORDS) + r")\b",
+    re.IGNORECASE
+)
+_HANDWORD_ALL_RE = re.compile(
+    r"\b(" + "|".join(re.escape(w) for w in HANDWAVE_WORDS) + r")\b",
+    re.IGNORECASE
+)
 _VOWEL_GROUP = re.compile(r"[aeiouy]+")
 _WORD = re.compile(r"[A-Za-z']+")
 _SENT_SPLIT = re.compile(r"(?<=[.!?])\s+")
@@ -110,10 +111,14 @@ def find_handwaving(text):
         c = low.count(p)
         if c:
             hits.append((p, c))
-    for w, rx in _HANDWORD_RE.items():
-        c = len(rx.findall(text))
-        if c:
-            hits.append((w, c))
+
+    word_counts = {}
+    for match in _HANDWORD_ALL_RE.finditer(text):
+        w = match.group(1).lower()
+        word_counts[w] = word_counts.get(w, 0) + 1
+
+    for w, c in word_counts.items():
+        hits.append((w, c))
     return hits
 
 
@@ -125,11 +130,14 @@ def find_flourishes(text):
 
 def find_fancy(text):
     """Return [(word, suggestion, count)] for fancy words (WARN)."""
+    counts = {}
+    for match in _FANCY_ALL_RE.finditer(text):
+        w = match.group(1).lower()
+        counts[w] = counts.get(w, 0) + 1
+
     out = []
-    for w, rx in _FANCY_RE.items():
-        c = len(rx.findall(text))
-        if c:
-            out.append((w, FANCY_WORDS[w], c))
+    for w, c in counts.items():
+        out.append((w, FANCY_WORDS[w], c))
     out.sort(key=lambda t: (-t[2], t[0]))
     return out
 
