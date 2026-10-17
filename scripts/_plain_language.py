@@ -89,14 +89,16 @@ FANCY_WORDS = {
 }
 
 # Pre-compiled matchers ------------------------------------------------------ #
-_FANCY_RE = {
-    w: re.compile(r"\b" + re.escape(w) + r"\b", re.IGNORECASE)
-    for w in FANCY_WORDS
-}
-_HANDWORD_RE = {
-    w: re.compile(r"\b" + re.escape(w) + r"\b", re.IGNORECASE)
-    for w in HANDWAVE_WORDS
-}
+# ⚡ Bolt: Use a single alternation regex instead of many individual ones.
+# Sort by length descending so that longer phrases match before shorter overlaps.
+_ALL_FANCY_RE = re.compile(
+    r"\b(" + "|".join(re.escape(w) for w in sorted(FANCY_WORDS, key=len, reverse=True)) + r")\b",
+    re.IGNORECASE
+)
+_ALL_HANDWORD_RE = re.compile(
+    r"\b(" + "|".join(re.escape(w) for w in sorted(HANDWAVE_WORDS, key=len, reverse=True)) + r")\b",
+    re.IGNORECASE
+)
 _VOWEL_GROUP = re.compile(r"[aeiouy]+")
 _WORD = re.compile(r"[A-Za-z']+")
 _SENT_SPLIT = re.compile(r"(?<=[.!?])\s+")
@@ -110,10 +112,22 @@ def find_handwaving(text):
         c = low.count(p)
         if c:
             hits.append((p, c))
-    for w, rx in _HANDWORD_RE.items():
-        c = len(rx.findall(text))
-        if c:
-            hits.append((w, c))
+
+    word_counts = {}
+    for match in _ALL_HANDWORD_RE.finditer(text):
+        w = match.group(1).lower()
+        # Ensure we use the exact key case from the original list
+        for key in HANDWAVE_WORDS:
+            if key.lower() == w:
+                w = key
+                break
+        word_counts[w] = word_counts.get(w, 0) + 1
+
+    # Keep the original order of HANDWAVE_WORDS
+    for w in HANDWAVE_WORDS:
+        if w in word_counts:
+            hits.append((w, word_counts[w]))
+
     return hits
 
 
@@ -125,11 +139,21 @@ def find_flourishes(text):
 
 def find_fancy(text):
     """Return [(word, suggestion, count)] for fancy words (WARN)."""
+    # ⚡ Bolt: Single pass O(L) scan instead of multiple O(N*M) passes
+    counts = {}
+    for match in _ALL_FANCY_RE.finditer(text):
+        w = match.group(1).lower()
+        # Ensure exact key case from the dictionary
+        for key in FANCY_WORDS:
+            if key.lower() == w:
+                w = key
+                break
+        counts[w] = counts.get(w, 0) + 1
+
     out = []
-    for w, rx in _FANCY_RE.items():
-        c = len(rx.findall(text))
-        if c:
-            out.append((w, FANCY_WORDS[w], c))
+    for w, c in counts.items():
+        out.append((w, FANCY_WORDS[w], c))
+
     out.sort(key=lambda t: (-t[2], t[0]))
     return out
 
