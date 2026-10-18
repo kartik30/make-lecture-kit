@@ -89,14 +89,18 @@ FANCY_WORDS = {
 }
 
 # Pre-compiled matchers ------------------------------------------------------ #
-_FANCY_RE = {
-    w: re.compile(r"\b" + re.escape(w) + r"\b", re.IGNORECASE)
-    for w in FANCY_WORDS
-}
-_HANDWORD_RE = {
-    w: re.compile(r"\b" + re.escape(w) + r"\b", re.IGNORECASE)
-    for w in HANDWAVE_WORDS
-}
+# ⚡ Bolt Optimization: Use a single alternation regex for O(L) complexity
+# rather than iteratively running multiple regex passes.
+# Keys are sorted by length descending to prevent shorter phrases from masking longer ones,
+# and we maintain a mapping back to exact original keys for safety.
+_FANCY_KEYS_SORTED = sorted(FANCY_WORDS.keys(), key=len, reverse=True)
+_FANCY_KEY_MAP = {k.lower(): k for k in FANCY_WORDS.keys()}
+_FANCY_RE = re.compile(r"\b(" + "|".join(re.escape(w) for w in _FANCY_KEYS_SORTED) + r")\b", re.IGNORECASE)
+
+_HANDWORD_KEYS_SORTED = sorted(HANDWAVE_WORDS, key=len, reverse=True)
+_HANDWORD_KEY_MAP = {w.lower(): w for w in HANDWAVE_WORDS}
+_HANDWORD_RE = re.compile(r"\b(" + "|".join(re.escape(w) for w in _HANDWORD_KEYS_SORTED) + r")\b", re.IGNORECASE)
+
 _VOWEL_GROUP = re.compile(r"[aeiouy]+")
 _WORD = re.compile(r"[A-Za-z']+")
 _SENT_SPLIT = re.compile(r"(?<=[.!?])\s+")
@@ -110,10 +114,14 @@ def find_handwaving(text):
         c = low.count(p)
         if c:
             hits.append((p, c))
-    for w, rx in _HANDWORD_RE.items():
-        c = len(rx.findall(text))
-        if c:
-            hits.append((w, c))
+
+    counts = {}
+    for match in _HANDWORD_RE.finditer(text):
+        w = _HANDWORD_KEY_MAP[match.group(1).lower()]
+        counts[w] = counts.get(w, 0) + 1
+
+    for w, c in counts.items():
+        hits.append((w, c))
     return hits
 
 
@@ -125,11 +133,12 @@ def find_flourishes(text):
 
 def find_fancy(text):
     """Return [(word, suggestion, count)] for fancy words (WARN)."""
-    out = []
-    for w, rx in _FANCY_RE.items():
-        c = len(rx.findall(text))
-        if c:
-            out.append((w, FANCY_WORDS[w], c))
+    counts = {}
+    for match in _FANCY_RE.finditer(text):
+        w = _FANCY_KEY_MAP[match.group(1).lower()]
+        counts[w] = counts.get(w, 0) + 1
+
+    out = [(w, FANCY_WORDS[w], c) for w, c in counts.items()]
     out.sort(key=lambda t: (-t[2], t[0]))
     return out
 
