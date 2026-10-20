@@ -89,14 +89,16 @@ FANCY_WORDS = {
 }
 
 # Pre-compiled matchers ------------------------------------------------------ #
-_FANCY_RE = {
-    w: re.compile(r"\b" + re.escape(w) + r"\b", re.IGNORECASE)
-    for w in FANCY_WORDS
-}
-_HANDWORD_RE = {
-    w: re.compile(r"\b" + re.escape(w) + r"\b", re.IGNORECASE)
-    for w in HANDWAVE_WORDS
-}
+# Opt: Single alternation regex for O(L) complexity, keys sorted by length descending
+# to prevent shorter phrases from masking longer ones, with a mapping back to exact original keys.
+_FANCY_KEYS = sorted(FANCY_WORDS.keys(), key=len, reverse=True)
+_FANCY_MAP = {k.lower(): k for k in _FANCY_KEYS}
+_FANCY_ALT_RE = re.compile(r"\b(" + "|".join(re.escape(k) for k in _FANCY_KEYS) + r")\b", re.IGNORECASE)
+
+_HANDWORD_KEYS = sorted(HANDWAVE_WORDS, key=len, reverse=True)
+_HANDWORD_MAP = {k.lower(): k for k in _HANDWORD_KEYS}
+_HANDWORD_ALT_RE = re.compile(r"\b(" + "|".join(re.escape(k) for k in _HANDWORD_KEYS) + r")\b", re.IGNORECASE)
+
 _VOWEL_GROUP = re.compile(r"[aeiouy]+")
 _WORD = re.compile(r"[A-Za-z']+")
 _SENT_SPLIT = re.compile(r"(?<=[.!?])\s+")
@@ -110,10 +112,16 @@ def find_handwaving(text):
         c = low.count(p)
         if c:
             hits.append((p, c))
-    for w, rx in _HANDWORD_RE.items():
-        c = len(rx.findall(text))
-        if c:
-            hits.append((w, c))
+
+    # Opt: Single alternation regex for O(L) complexity
+    counts = {}
+    for m in _HANDWORD_ALT_RE.finditer(text):
+        low_w = m.group(1).lower()
+        counts[low_w] = counts.get(low_w, 0) + 1
+
+    for low_w, c in counts.items():
+        w = _HANDWORD_MAP[low_w]
+        hits.append((w, c))
     return hits
 
 
@@ -125,11 +133,16 @@ def find_flourishes(text):
 
 def find_fancy(text):
     """Return [(word, suggestion, count)] for fancy words (WARN)."""
+    # Opt: Single alternation regex for O(L) complexity
+    counts = {}
+    for m in _FANCY_ALT_RE.finditer(text):
+        low_w = m.group(1).lower()
+        counts[low_w] = counts.get(low_w, 0) + 1
+
     out = []
-    for w, rx in _FANCY_RE.items():
-        c = len(rx.findall(text))
-        if c:
-            out.append((w, FANCY_WORDS[w], c))
+    for low_w, c in counts.items():
+        w = _FANCY_MAP[low_w]
+        out.append((w, FANCY_WORDS[w], c))
     out.sort(key=lambda t: (-t[2], t[0]))
     return out
 
