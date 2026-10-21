@@ -9,6 +9,7 @@ Pure standard library. No third-party deps, no network. Works unchanged on any
 agent platform (Claude / Codex / Jules / Cursor / CI).
 """
 
+import collections
 import re
 
 # Sentence-length policy (mirrors plain_language.md §1).
@@ -89,14 +90,17 @@ FANCY_WORDS = {
 }
 
 # Pre-compiled matchers ------------------------------------------------------ #
-_FANCY_RE = {
-    w: re.compile(r"\b" + re.escape(w) + r"\b", re.IGNORECASE)
-    for w in FANCY_WORDS
-}
-_HANDWORD_RE = {
-    w: re.compile(r"\b" + re.escape(w) + r"\b", re.IGNORECASE)
-    for w in HANDWAVE_WORDS
-}
+
+_FANCY_KEYS = sorted(FANCY_WORDS.keys(), key=len, reverse=True)
+_FANCY_PATTERN = r"\b(" + "|".join(re.escape(k) for k in _FANCY_KEYS) + r")\b"
+_FANCY_RE_COMBINED = re.compile(_FANCY_PATTERN, re.IGNORECASE)
+_FANCY_LOWER_MAP = {k.lower(): k for k in FANCY_WORDS.keys()}
+
+_HANDWORD_KEYS = sorted(HANDWAVE_WORDS, key=len, reverse=True)
+_HANDWORD_PATTERN = r"\b(" + "|".join(re.escape(k) for k in _HANDWORD_KEYS) + r")\b"
+_HANDWORD_RE_COMBINED = re.compile(_HANDWORD_PATTERN, re.IGNORECASE)
+_HANDWORD_LOWER_MAP = {k.lower(): k for k in HANDWAVE_WORDS}
+
 _VOWEL_GROUP = re.compile(r"[aeiouy]+")
 _WORD = re.compile(r"[A-Za-z']+")
 _SENT_SPLIT = re.compile(r"(?<=[.!?])\s+")
@@ -110,10 +114,14 @@ def find_handwaving(text):
         c = low.count(p)
         if c:
             hits.append((p, c))
-    for w, rx in _HANDWORD_RE.items():
-        c = len(rx.findall(text))
-        if c:
-            hits.append((w, c))
+
+    # Optimization: Use O(L) pre-compiled alternation regex instead of O(K*L)
+    matches = _HANDWORD_RE_COMBINED.finditer(text)
+    counts = collections.Counter(m.group(1).lower() for m in matches)
+    for lower_w, c in counts.items():
+        if lower_w in _HANDWORD_LOWER_MAP:
+            orig_w = _HANDWORD_LOWER_MAP[lower_w]
+            hits.append((orig_w, c))
     return hits
 
 
@@ -125,11 +133,14 @@ def find_flourishes(text):
 
 def find_fancy(text):
     """Return [(word, suggestion, count)] for fancy words (WARN)."""
+    # Optimization: Use O(L) pre-compiled alternation regex instead of O(K*L)
+    matches = _FANCY_RE_COMBINED.finditer(text)
+    counts = collections.Counter(m.group(1).lower() for m in matches)
     out = []
-    for w, rx in _FANCY_RE.items():
-        c = len(rx.findall(text))
-        if c:
-            out.append((w, FANCY_WORDS[w], c))
+    for lower_w, c in counts.items():
+        if lower_w in _FANCY_LOWER_MAP:
+            orig_w = _FANCY_LOWER_MAP[lower_w]
+            out.append((orig_w, FANCY_WORDS[orig_w], c))
     out.sort(key=lambda t: (-t[2], t[0]))
     return out
 
