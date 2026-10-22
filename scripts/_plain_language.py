@@ -89,14 +89,15 @@ FANCY_WORDS = {
 }
 
 # Pre-compiled matchers ------------------------------------------------------ #
-_FANCY_RE = {
-    w: re.compile(r"\b" + re.escape(w) + r"\b", re.IGNORECASE)
-    for w in FANCY_WORDS
-}
-_HANDWORD_RE = {
-    w: re.compile(r"\b" + re.escape(w) + r"\b", re.IGNORECASE)
-    for w in HANDWAVE_WORDS
-}
+def _build_regex_and_map(keys):
+    """Helper to build a single O(L) length-sorted regex and its reverse map."""
+    sorted_keys = sorted(keys, key=len, reverse=True)
+    pattern = r"\b(" + "|".join(re.escape(w) for w in sorted_keys) + r")\b"
+    return re.compile(pattern, re.IGNORECASE), {k.lower(): k for k in keys}
+
+_FANCY_SINGLE_RE, _FANCY_MAP = _build_regex_and_map(FANCY_WORDS.keys())
+_HANDWORD_SINGLE_RE, _HANDWORD_MAP = _build_regex_and_map(HANDWAVE_WORDS)
+
 _VOWEL_GROUP = re.compile(r"[aeiouy]+")
 _WORD = re.compile(r"[A-Za-z']+")
 _SENT_SPLIT = re.compile(r"(?<=[.!?])\s+")
@@ -110,10 +111,16 @@ def find_handwaving(text):
         c = low.count(p)
         if c:
             hits.append((p, c))
-    for w, rx in _HANDWORD_RE.items():
-        c = len(rx.findall(text))
-        if c:
-            hits.append((w, c))
+
+    # Optimize regex matching: O(L) instead of O(N*L)
+    counts = {}
+    for match in _HANDWORD_SINGLE_RE.finditer(text):
+        w = match.group(1).lower()
+        orig_w = _HANDWORD_MAP[w]
+        counts[orig_w] = counts.get(orig_w, 0) + 1
+
+    for w, c in counts.items():
+        hits.append((w, c))
     return hits
 
 
@@ -125,11 +132,14 @@ def find_flourishes(text):
 
 def find_fancy(text):
     """Return [(word, suggestion, count)] for fancy words (WARN)."""
-    out = []
-    for w, rx in _FANCY_RE.items():
-        c = len(rx.findall(text))
-        if c:
-            out.append((w, FANCY_WORDS[w], c))
+    counts = {}
+    # Optimize regex matching: O(L) instead of O(N*L)
+    for match in _FANCY_SINGLE_RE.finditer(text):
+        w = match.group(1).lower()
+        orig_w = _FANCY_MAP[w]
+        counts[orig_w] = counts.get(orig_w, 0) + 1
+
+    out = [(w, FANCY_WORDS[w], c) for w, c in counts.items()]
     out.sort(key=lambda t: (-t[2], t[0]))
     return out
 
