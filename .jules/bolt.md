@@ -1,0 +1,3 @@
+## 2023-10-24 - O(L) Complexity Regex Matching for Linting Large Texts
+**Learning:** Checking for many individual target words in large texts within the codebase (e.g., linting scripts) using individual `.count()` or `re.findall()` in loops is a performance bottleneck.
+**Action:** Use a single pre-compiled alternation regex with `finditer()` to achieve O(L) complexity. Crucially, sort the target words by length descending (`sorted(keys, key=len, reverse=True)`) when building the regex to prevent shorter phrases from masking longer overlapping ones (alternation masking), and maintain a mapping back to the exact original dictionary keys to prevent KeyErrors.
