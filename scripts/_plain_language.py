@@ -89,14 +89,37 @@ FANCY_WORDS = {
 }
 
 # Pre-compiled matchers ------------------------------------------------------ #
-_FANCY_RE = {
-    w: re.compile(r"\b" + re.escape(w) + r"\b", re.IGNORECASE)
-    for w in FANCY_WORDS
-}
-_HANDWORD_RE = {
-    w: re.compile(r"\b" + re.escape(w) + r"\b", re.IGNORECASE)
-    for w in HANDWAVE_WORDS
-}
+# Optimizing regex searches for O(L) complexity using single alternation patterns
+# sorted by length descending to prevent shorter phrases from masking longer ones.
+
+_HANDWAVE_PHRASES_KEYS = sorted(HANDWAVE_PHRASES, key=len, reverse=True)
+_HANDWAVE_PHRASES_MAP = {p.lower(): p for p in HANDWAVE_PHRASES}
+_HANDWAVE_PHRASES_RE = re.compile(
+    r"(" + "|".join(re.escape(p) for p in _HANDWAVE_PHRASES_KEYS) + r")",
+    re.IGNORECASE
+)
+
+_HANDWAVE_WORDS_KEYS = sorted(HANDWAVE_WORDS, key=len, reverse=True)
+_HANDWAVE_WORDS_MAP = {w.lower(): w for w in HANDWAVE_WORDS}
+_HANDWAVE_WORDS_RE = re.compile(
+    r"\b(" + "|".join(re.escape(w) for w in _HANDWAVE_WORDS_KEYS) + r")\b",
+    re.IGNORECASE
+)
+
+_FLOURISH_KEYS = sorted(FLOURISH_PHRASES, key=len, reverse=True)
+_FLOURISH_MAP = {p.lower(): p for p in FLOURISH_PHRASES}
+_FLOURISH_RE = re.compile(
+    r"(" + "|".join(re.escape(p) for p in _FLOURISH_KEYS) + r")",
+    re.IGNORECASE
+)
+
+_FANCY_KEYS = sorted(FANCY_WORDS.keys(), key=len, reverse=True)
+_FANCY_MAP = {k.lower(): k for k in FANCY_WORDS.keys()}
+_FANCY_RE = re.compile(
+    r"\b(" + "|".join(re.escape(k) for k in _FANCY_KEYS) + r")\b",
+    re.IGNORECASE
+)
+
 _VOWEL_GROUP = re.compile(r"[aeiouy]+")
 _WORD = re.compile(r"[A-Za-z']+")
 _SENT_SPLIT = re.compile(r"(?<=[.!?])\s+")
@@ -104,32 +127,44 @@ _SENT_SPLIT = re.compile(r"(?<=[.!?])\s+")
 
 def find_handwaving(text):
     """Return [(phrase, count)] for every banned hand-wave found (hard FAIL)."""
-    low = text.lower()
-    hits = []
+    hits = {}
+    for m in _HANDWAVE_PHRASES_RE.finditer(text):
+        orig = _HANDWAVE_PHRASES_MAP[m.group(1).lower()]
+        hits[orig] = hits.get(orig, 0) + 1
+    for m in _HANDWAVE_WORDS_RE.finditer(text):
+        orig = _HANDWAVE_WORDS_MAP[m.group(1).lower()]
+        hits[orig] = hits.get(orig, 0) + 1
+
+    res = []
     for p in HANDWAVE_PHRASES:
-        c = low.count(p)
-        if c:
-            hits.append((p, c))
-    for w, rx in _HANDWORD_RE.items():
-        c = len(rx.findall(text))
-        if c:
-            hits.append((w, c))
-    return hits
+        if p in hits:
+            res.append((p, hits[p]))
+    for w in HANDWAVE_WORDS:
+        if w in hits:
+            res.append((w, hits[w]))
+    return res
 
 
 def find_flourishes(text):
     """Return [(phrase, count)] for literary/filler flourishes (WARN)."""
-    low = text.lower()
-    return [(p, low.count(p)) for p in FLOURISH_PHRASES if low.count(p)]
+    hits = {}
+    for m in _FLOURISH_RE.finditer(text):
+        orig = _FLOURISH_MAP[m.group(1).lower()]
+        hits[orig] = hits.get(orig, 0) + 1
+
+    return [(p, hits[p]) for p in FLOURISH_PHRASES if p in hits]
 
 
 def find_fancy(text):
     """Return [(word, suggestion, count)] for fancy words (WARN)."""
+    hits = {}
+    for m in _FANCY_RE.finditer(text):
+        orig = _FANCY_MAP[m.group(1).lower()]
+        hits[orig] = hits.get(orig, 0) + 1
+
     out = []
-    for w, rx in _FANCY_RE.items():
-        c = len(rx.findall(text))
-        if c:
-            out.append((w, FANCY_WORDS[w], c))
+    for w, count in hits.items():
+        out.append((w, FANCY_WORDS[w], count))
     out.sort(key=lambda t: (-t[2], t[0]))
     return out
 
