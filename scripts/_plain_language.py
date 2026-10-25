@@ -89,14 +89,16 @@ FANCY_WORDS = {
 }
 
 # Pre-compiled matchers ------------------------------------------------------ #
-_FANCY_RE = {
-    w: re.compile(r"\b" + re.escape(w) + r"\b", re.IGNORECASE)
-    for w in FANCY_WORDS
-}
-_HANDWORD_RE = {
-    w: re.compile(r"\b" + re.escape(w) + r"\b", re.IGNORECASE)
-    for w in HANDWAVE_WORDS
-}
+# ⚡ Bolt optimization: Use single alternation regexes sorted by length descending
+# to achieve O(L) complexity instead of O(N*L) when searching large texts.
+_fancy_keys = sorted(FANCY_WORDS.keys(), key=len, reverse=True)
+_fancy_pattern = r"\b(" + "|".join(map(re.escape, _fancy_keys)) + r")\b"
+_FANCY_SINGLE_RE = re.compile(_fancy_pattern, re.IGNORECASE)
+
+_handwave_words_keys = sorted(HANDWAVE_WORDS, key=len, reverse=True)
+_handwave_words_pattern = r"\b(" + "|".join(map(re.escape, _handwave_words_keys)) + r")\b"
+_HANDWORD_SINGLE_RE = re.compile(_handwave_words_pattern, re.IGNORECASE)
+
 _VOWEL_GROUP = re.compile(r"[aeiouy]+")
 _WORD = re.compile(r"[A-Za-z']+")
 _SENT_SPLIT = re.compile(r"(?<=[.!?])\s+")
@@ -110,10 +112,13 @@ def find_handwaving(text):
         c = low.count(p)
         if c:
             hits.append((p, c))
-    for w, rx in _HANDWORD_RE.items():
-        c = len(rx.findall(text))
-        if c:
-            hits.append((w, c))
+
+    counts = {}
+    for m in _HANDWORD_SINGLE_RE.finditer(text):
+        w = m.group(1).lower()
+        counts[w] = counts.get(w, 0) + 1
+    for w, c in counts.items():
+        hits.append((w, c))
     return hits
 
 
@@ -125,11 +130,14 @@ def find_flourishes(text):
 
 def find_fancy(text):
     """Return [(word, suggestion, count)] for fancy words (WARN)."""
+    counts = {}
+    for m in _FANCY_SINGLE_RE.finditer(text):
+        w = m.group(1).lower()
+        counts[w] = counts.get(w, 0) + 1
+
     out = []
-    for w, rx in _FANCY_RE.items():
-        c = len(rx.findall(text))
-        if c:
-            out.append((w, FANCY_WORDS[w], c))
+    for w, c in counts.items():
+        out.append((w, FANCY_WORDS[w], c))
     out.sort(key=lambda t: (-t[2], t[0]))
     return out
 
