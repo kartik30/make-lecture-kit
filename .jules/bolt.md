@@ -1,0 +1,3 @@
+## 2024-10-26 - Regex Alternation for O(L) Dictionary Search
+**Learning:** Using `count()` repeatedly on many strings in loops or iterating over numerous pre-compiled single-word regexes using `rx.findall(text)` in a big text makes the checking algorithm $O(N \cdot L)$, which can take a long time on large HTML/TeX texts.
+**Action:** Always pre-compile a single alternation regex (`re.compile("(...|...|...)")`) sorted by length descending to prevent shorter phrases masking longer overlapping ones. Using `finditer()` achieves O(L) time complexity when checking for many individual words across huge document files. Maintain a mapping back to the exact original dictionary keys.
