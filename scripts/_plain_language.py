@@ -89,10 +89,10 @@ FANCY_WORDS = {
 }
 
 # Pre-compiled matchers ------------------------------------------------------ #
-_FANCY_RE = {
-    w: re.compile(r"\b" + re.escape(w) + r"\b", re.IGNORECASE)
-    for w in FANCY_WORDS
-}
+_FANCY_KEYS_SORTED = sorted(FANCY_WORDS.keys(), key=len, reverse=True)
+_FANCY_PATTERN = r"\b(" + "|".join(re.escape(w) for w in _FANCY_KEYS_SORTED) + r")\b"
+_FAST_FANCY_RE = re.compile(_FANCY_PATTERN, re.IGNORECASE)
+
 _HANDWORD_RE = {
     w: re.compile(r"\b" + re.escape(w) + r"\b", re.IGNORECASE)
     for w in HANDWAVE_WORDS
@@ -125,11 +125,14 @@ def find_flourishes(text):
 
 def find_fancy(text):
     """Return [(word, suggestion, count)] for fancy words (WARN)."""
+    counts = {}
+    for m in _FAST_FANCY_RE.finditer(text):
+        w = m.group(1).lower()
+        counts[w] = counts.get(w, 0) + 1
+
     out = []
-    for w, rx in _FANCY_RE.items():
-        c = len(rx.findall(text))
-        if c:
-            out.append((w, FANCY_WORDS[w], c))
+    for w, count in counts.items():
+        out.append((w, FANCY_WORDS[w], count))
     out.sort(key=lambda t: (-t[2], t[0]))
     return out
 
