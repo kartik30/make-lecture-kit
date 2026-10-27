@@ -1,0 +1,3 @@
+## 2026-10-27 - [Optimize multiple word matching with single alternation regex]
+**Learning:** [When checking for many individual target words in large texts within the codebase (e.g., linting scripts), use a single pre-compiled alternation regex with `finditer()` to achieve O(L) complexity. Crucially, sort the target words by length descending (`sorted(keys, key=len, reverse=True)`) when building the regex to prevent shorter phrases from masking longer overlapping ones (alternation masking), and maintain a mapping back to the exact original dictionary keys to prevent KeyErrors.]
+**Action:** [Use a single pre-compiled alternation regex with `finditer()` and sorted target words instead of iterating over a dictionary of regexes to optimize multiple word matching.]
