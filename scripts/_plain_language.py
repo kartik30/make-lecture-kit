@@ -10,6 +10,7 @@ agent platform (Claude / Codex / Jules / Cursor / CI).
 """
 
 import re
+from collections import Counter
 
 # Sentence-length policy (mirrors plain_language.md §1).
 WORD_AIM = 15            # the target average
@@ -89,14 +90,14 @@ FANCY_WORDS = {
 }
 
 # Pre-compiled matchers ------------------------------------------------------ #
-_FANCY_RE = {
-    w: re.compile(r"\b" + re.escape(w) + r"\b", re.IGNORECASE)
-    for w in FANCY_WORDS
-}
-_HANDWORD_RE = {
-    w: re.compile(r"\b" + re.escape(w) + r"\b", re.IGNORECASE)
-    for w in HANDWAVE_WORDS
-}
+_FANCY_KEYS = sorted(FANCY_WORDS.keys(), key=len, reverse=True)
+_FANCY_MAP = {k.lower(): k for k in FANCY_WORDS.keys()}
+_FANCY_RE = re.compile(r"\b(" + "|".join(re.escape(w) for w in _FANCY_KEYS) + r")\b", re.IGNORECASE)
+
+_HANDWORD_KEYS = sorted(HANDWAVE_WORDS, key=len, reverse=True)
+_HANDWORD_MAP = {k.lower(): k for k in HANDWAVE_WORDS}
+_HANDWORD_RE = re.compile(r"\b(" + "|".join(re.escape(w) for w in _HANDWORD_KEYS) + r")\b", re.IGNORECASE)
+
 _VOWEL_GROUP = re.compile(r"[aeiouy]+")
 _WORD = re.compile(r"[A-Za-z']+")
 _SENT_SPLIT = re.compile(r"(?<=[.!?])\s+")
@@ -110,10 +111,11 @@ def find_handwaving(text):
         c = low.count(p)
         if c:
             hits.append((p, c))
-    for w, rx in _HANDWORD_RE.items():
-        c = len(rx.findall(text))
-        if c:
-            hits.append((w, c))
+
+    counts = Counter(m.group(1).lower() for m in _HANDWORD_RE.finditer(text))
+    for low_w, c in counts.items():
+        w = _HANDWORD_MAP[low_w]
+        hits.append((w, c))
     return hits
 
 
@@ -125,11 +127,11 @@ def find_flourishes(text):
 
 def find_fancy(text):
     """Return [(word, suggestion, count)] for fancy words (WARN)."""
+    counts = Counter(m.group(1).lower() for m in _FANCY_RE.finditer(text))
     out = []
-    for w, rx in _FANCY_RE.items():
-        c = len(rx.findall(text))
-        if c:
-            out.append((w, FANCY_WORDS[w], c))
+    for low_w, c in counts.items():
+        w = _FANCY_MAP[low_w]
+        out.append((w, FANCY_WORDS[w], c))
     out.sort(key=lambda t: (-t[2], t[0]))
     return out
 
